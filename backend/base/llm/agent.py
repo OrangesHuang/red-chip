@@ -190,13 +190,19 @@ def run_analysis(
     from base.pool import get_stock
 
     info = get_stock(code) or {"name": code}
+    target = f"{code} {info.get('name', '')}(市场 {info.get('market', '')})"
     messages: list[dict] = [{"role": "system", "content": SYSTEM_PROMPT}]
     if history:
         messages.extend(history)
-    prompt = (user_prompt or "").strip() or (
-        f"请深度分析股票 {code}({info.get('name', '')}, 市场 {info.get('market', '')})。"
-        "先获取数据与资讯, 再综合给出报告。"
-    )
+    raw_prompt = (user_prompt or "").strip()
+    if raw_prompt:
+        # 多轮追问: 必须显式标注分析标的, 否则模型可能分析其他股票(或工具漏传代码)
+        prompt = (
+            f"【本次分析标的: {target}】请始终围绕该标的回答, 不要分析或切换到其他股票。\n"
+            f"用户问题: {raw_prompt}"
+        )
+    else:
+        prompt = f"请深度分析股票 {target}。先获取数据与资讯, 再综合给出报告。"
     messages.append({"role": "user", "content": prompt})
 
     def step(kind: str, msg: str, detail: str | None = None, update: bool = False) -> None:
@@ -251,6 +257,13 @@ def run_analysis(
                 {"role": "user", "content": f"工具 {tool} 不存在, 可用工具: {', '.join(_TOOLS)}。请重新输出 JSON。"}
             )
             continue
+
+        # 标的代码注入(防错标的): 个股类工具漏传 code 时, 强制用本次分析目标,
+        # 绝不静默回退默认股票(曾导致腾讯控股会话弹出中国移动数据的 bug)
+        if tool in ("get_stock_data", "get_stock_news") and not args.get("code") and not args.get("symbol"):
+            args = dict(args)
+            args["code"] = code
+            step("tool", f"模型未指定代码, 已自动注入分析标的 {code}", detail=None)
 
         step("round", f"第 {i + 1}/{LLM_MAX_STEPS} 轮: 模型决定调用工具 {tool}", detail=content[:600])
         step("tool", f"正在执行工具 {tool} {json.dumps(args, ensure_ascii=False)[:120]}…")

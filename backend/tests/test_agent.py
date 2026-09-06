@@ -139,7 +139,9 @@ def test_run_analysis_uses_user_prompt(monkeypatch):
 
     monkeypatch.setattr(agent, "chat_completion_rich", fake_chat)
     agent.run_analysis("00941", history=[], user_prompt="8月25日那天为什么会跌呢?")
-    assert captured["messages"][-1] == {"role": "user", "content": "8月25日那天为什么会跌呢?"}
+    last = captured["messages"][-1]
+    assert last["role"] == "user"
+    assert "8月25日那天为什么会跌呢?" in last["content"]  # 真实提问在消息里(带标的头)
 
 
 def test_run_analysis_generic_prompt_when_no_user_prompt(monkeypatch):
@@ -154,3 +156,39 @@ def test_run_analysis_generic_prompt_when_no_user_prompt(monkeypatch):
     agent.run_analysis("00941")
     last = captured["messages"][-1]["content"]
     assert "请深度分析股票 00941" in last
+
+
+def test_tool_call_code_injection(monkeypatch):
+    """模型漏传 code 时, 工具必须注入本次分析标的, 不得回退默认股票(00941)。
+    回归: 腾讯控股(00700)会话曾因空参数回退默认代码而弹出中国移动数据。"""
+    captured: dict = {}
+
+    def fake_chat(messages, **kwargs):
+        if not captured.get("round"):
+            captured["round"] = True
+            return '{"tool": "get_stock_data", "args": {}}', {}
+        return '{"final": "OK"}', {}
+
+    def fake_tool_data(args):
+        captured["args"] = dict(args)
+        return "{}"
+
+    monkeypatch.setattr(agent, "chat_completion_rich", fake_chat)
+    monkeypatch.setitem(agent._TOOLS["get_stock_data"], "fn", fake_tool_data)
+    agent.run_analysis("00700", user_prompt="请分析这只股票")
+    assert captured["args"].get("code") == "00700", f"注入失败: {captured['args']}"
+
+
+def test_user_prompt_contains_target(monkeypatch):
+    """多轮追问时, 发给模型的消息必须显式标注分析标的代码与名称。"""
+    captured: dict = {}
+
+    def fake_chat(messages, **kwargs):
+        captured["messages"] = list(messages)
+        return '{"final": "OK"}', {}
+
+    monkeypatch.setattr(agent, "chat_completion_rich", fake_chat)
+    agent.run_analysis("00941", history=[], user_prompt="8月25日为什么跌?")
+    last = captured["messages"][-1]["content"]
+    assert "00941" in last and "中国移动" in last
+    assert "8月25日为什么跌" in last

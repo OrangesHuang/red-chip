@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import AddStockDialog from '../components/pool/AddStockDialog'
 import { fmtPct, fmtPrice, oddsColor, scoreColor, usePool, zoneColor } from '../hooks/useStocks'
 import type { PoolStock } from '../api/types'
 
@@ -79,6 +81,7 @@ function PoolTable({ stocks }: { stocks: PoolStock[] }) {
 
 export default function Dashboard() {
   const { data, isLoading, isError, refetch, isFetching } = usePool()
+  const [showAdd, setShowAdd] = useState(false)
   const stocks = data?.stocks ?? []
 
   const avgYield = (() => {
@@ -98,14 +101,24 @@ export default function Dashboard() {
             高股息六因子打分 × 股息率锚定价格区间 × 赔率。点击行进入个股详情。
           </p>
         </div>
-        <button
-          onClick={() => refetch()}
-          disabled={isFetching}
-          className="px-3 py-1.5 rounded text-sm bg-gray-800 text-gray-300 hover:bg-gray-700 transition-colors disabled:opacity-50"
-        >
-          {isFetching ? '刷新中…' : '刷新'}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowAdd(true)}
+            className="px-3 py-1.5 rounded text-sm bg-emerald-900/70 text-emerald-200 hover:bg-emerald-800/70 transition-colors"
+          >
+            + 添加股票
+          </button>
+          <button
+            onClick={() => refetch()}
+            disabled={isFetching}
+            className="px-3 py-1.5 rounded text-sm bg-gray-800 text-gray-300 hover:bg-gray-700 transition-colors disabled:opacity-50"
+          >
+            {isFetching ? '刷新中…' : '刷新'}
+          </button>
+        </div>
       </div>
+
+      {showAdd && <AddStockDialog onClose={() => setShowAdd(false)} />}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[

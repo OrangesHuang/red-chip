@@ -54,6 +54,9 @@ main.py 仅做 app 组装
 - **ReAct 协议**：模型每步输出 JSON，`{"tool": "...", "args": {...}}` 或 `{"final": "报告"}`；
   用 deepseek-chat 的 `response_format=json_object` 保证解析可靠（`parse_llm_json` 容忍代码围栏）；
   **空响应/解析失败自动重试提示**（不静默带病继续），兜底仍无效则报 LLMError。
+- **防错标的(重要)**：`get_stock_data`/`get_stock_news` 漏传 code 时由 agent 循环**注入本次分析
+  目标代码**(曾因回退 DEFAULT_STOCK_CODE=00941 导致腾讯控股会话弹出中国移动数据);
+  多轮追问消息自动前置「【本次分析标的: code 名称(市场)】」头。
 - **工具注册表** `agent._TOOLS`：get_stock_data / get_stock_news / get_pool / bash（30s 超时+截断）。
   新增工具：写函数 + 注册 + 在 SYSTEM_PROMPT 里加描述。
 - 数据上下文：`dividend/service.build_llm_context(code)`（紧凑版，~1k token，禁传全量 K 线）。
