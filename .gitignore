@@ -1,0 +1,28 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# Node
+node_modules/
+dist/
+
+# Local data / artifacts
+*.db
+*.db-wal
+*.db-shm
+.DS_Store
+
+# Logs
+*.log
+nohup.out
+
+# IDE
+.idea/
+.qoder/
+.npm-cache/
+data/
