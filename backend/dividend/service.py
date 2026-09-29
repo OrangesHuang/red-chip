@@ -58,6 +58,21 @@ def _div_years(dividends: list[dict]) -> int:
     return len([y for y in years if now_year - 5 < y <= now_year])
 
 
+def _last_close_change_pct(kline: list[dict]) -> float | None:
+    """最新一根 K 线相对前收的涨跌幅 %(与 stock_repo.upsert_daily 同口径)。
+
+    fetch_kline 返回的 bar 不含 change_pct, 必须在此按相邻收盘价计算, 否则
+    快照 change_pct 会恒为 None(realtime 拉取失败时前端拿不到当日涨跌)。
+    """
+    if len(kline) < 2:
+        return None
+    prev = kline[-2].get("close")
+    last = kline[-1].get("close")
+    if not prev or prev <= 0 or last is None:
+        return None
+    return round((last / prev - 1.0) * 100.0, 4)
+
+
 def _div_growth(dividends: list[dict]) -> float | None:
     """近 3 年每股股息 CAGR %。
 
@@ -175,7 +190,7 @@ def _compute_and_store_snapshot(code: str, kline: list[dict], dividends: list[di
         "date": last["date"],
         "code": code,
         "close_price": last["close"],
-        "change_pct": last.get("change_pct"),
+        "change_pct": _last_close_change_pct(kline),
         "dps_ttm": dps if dps > 0 else None,
         "div_yield": current_yield,
         "score": scores.total,
