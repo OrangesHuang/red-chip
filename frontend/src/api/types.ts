@@ -25,6 +25,14 @@ export interface PoolResponse {
   count: number
 }
 
+export interface ZoneStatStock {
+  code: string | null
+  name: string | null
+  market: string | null
+  price: number | null
+  change_pct: number | null
+}
+
 export interface ZoneStat {
   zone: string
   count: number
@@ -34,6 +42,7 @@ export interface ZoneStat {
   valid: number
   win_rate: number | null
   avg_change: number | null
+  stocks: ZoneStatStock[]
 }
 
 export interface ZoneStatsOverall {

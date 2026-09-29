@@ -1,7 +1,8 @@
 import ReactECharts from 'echarts-for-react'
-import { useMemo } from 'react'
-import { fmtPct, useZoneStats, zoneColor } from '../hooks/useStocks'
-import type { ZoneStat } from '../api/types'
+import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { fmtPct, fmtPrice, useZoneStats, zoneColor } from '../hooks/useStocks'
+import type { ZoneStat, ZoneStatStock } from '../api/types'
 
 function ZoneChart({ zones }: { zones: ZoneStat[] }) {
   const option = useMemo(() => {
@@ -67,7 +68,7 @@ function ZoneChart({ zones }: { zones: ZoneStat[] }) {
   return <ReactECharts option={option} style={{ height: 320 }} notMerge />
 }
 
-function ZoneTable({ zones }: { zones: ZoneStat[] }) {
+function ZoneTable({ zones, onSelectZone }: { zones: ZoneStat[]; onSelectZone: (z: ZoneStat) => void }) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
@@ -88,7 +89,17 @@ function ZoneTable({ zones }: { zones: ZoneStat[] }) {
               <td className="py-2.5 pr-3">
                 <span className={`px-2 py-0.5 rounded text-xs ${zoneColor(z.zone)}`}>{z.zone}</span>
               </td>
-              <td className="py-2.5 pr-3 text-right font-mono text-gray-200">{z.count}</td>
+              <td
+                onClick={() => z.count > 0 && onSelectZone(z)}
+                title={z.count > 0 ? '点击查看该区间的标的' : undefined}
+                className={`py-2.5 pr-3 text-right font-mono transition-colors ${
+                  z.count > 0
+                    ? 'text-sky-400 underline decoration-dotted underline-offset-2 cursor-pointer hover:text-sky-300'
+                    : 'text-gray-600'
+                }`}
+              >
+                {z.count}
+              </td>
               <td className="py-2.5 pr-3 text-right font-mono text-red-400">{z.up}</td>
               <td className="py-2.5 pr-3 text-right font-mono text-green-400">{z.down}</td>
               <td className="py-2.5 pr-3 text-right font-mono text-gray-400">{z.flat}</td>
@@ -106,10 +117,87 @@ function ZoneTable({ zones }: { zones: ZoneStat[] }) {
   )
 }
 
+function StockLine({ stock, onPick }: { stock: ZoneStatStock; onPick: (code: string) => void }) {
+  const up = (stock.change_pct ?? 0) >= 0
+  return (
+    <button
+      type="button"
+      onClick={() => stock.code && onPick(stock.code)}
+      className="w-full flex items-center gap-2 rounded px-2 py-2 text-left text-sm hover:bg-gray-800/70 transition-colors"
+    >
+      <span className="text-gray-400 font-mono text-xs">{stock.code}</span>
+      <span
+        className={`inline-block w-4 text-center text-[10px] rounded ${
+          stock.market === 'hk' ? 'bg-purple-900/60 text-purple-300' : 'bg-blue-900/60 text-blue-300'
+        }`}
+      >
+        {stock.market === 'hk' ? 'H' : 'A'}
+      </span>
+      <span className="flex-1 text-gray-100 truncate">{stock.name}</span>
+      <span className="font-mono text-gray-300">{fmtPrice(stock.price)}</span>
+      <span className={`w-16 text-right font-mono ${up ? 'text-red-400' : 'text-green-400'}`}>
+        {fmtPct(stock.change_pct)}
+      </span>
+    </button>
+  )
+}
+
+function ZoneStocksModal({ zone, onClose }: { zone: ZoneStat; onClose: () => void }) {
+  const navigate = useNavigate()
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/60" />
+      <div
+        onClick={e => e.stopPropagation()}
+        className="relative z-10 w-full max-w-md max-h-[80vh] flex flex-col rounded-lg border border-gray-700 bg-gray-900 shadow-xl"
+      >
+        <div className="flex items-center justify-between border-b border-gray-800 px-4 py-3">
+          <div className="flex items-center gap-2">
+            <span className={`px-2 py-0.5 rounded text-xs ${zoneColor(zone.zone)}`}>{zone.zone}</span>
+            <span className="text-xs text-gray-400">共 {zone.count} 只 · 上涨 {zone.up} / 下跌 {zone.down}</span>
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded px-2 text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
+            aria-label="关闭"
+          >
+            ✕
+          </button>
+        </div>
+        <div className="overflow-y-auto p-2">
+          {zone.stocks.length === 0 ? (
+            <div className="py-10 text-center text-sm text-gray-500">该区间暂无标的</div>
+          ) : (
+            zone.stocks.map((s, i) => (
+              <StockLine
+                key={`${s.code ?? s.name ?? 'stock'}-${i}`}
+                stock={s}
+                onPick={code => {
+                  onClose()
+                  navigate(`/stock/${code}`)
+                }}
+              />
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function ZoneBoard() {
   const { data, isLoading, isError } = useZoneStats()
   const zones = data?.zones ?? []
   const overall = data?.overall
+  const [activeZone, setActiveZone] = useState<ZoneStat | null>(null)
 
   const cards = [
     { label: '池内标的', value: String(overall?.count ?? 0), cls: 'text-white' },
@@ -157,9 +245,11 @@ export default function ZoneBoard() {
           </div>
 
           <div className="bg-gray-900 rounded-lg p-3 border border-gray-800">
-            <div className="mb-2 text-xs text-gray-400">区间明细</div>
-            <ZoneTable zones={zones} />
+            <div className="mb-2 text-xs text-gray-400">区间明细（点击蓝色「数量」查看该区间标的）</div>
+            <ZoneTable zones={zones} onSelectZone={setActiveZone} />
           </div>
+
+          {activeZone && <ZoneStocksModal zone={activeZone} onClose={() => setActiveZone(null)} />}
         </>
       )}
     </div>

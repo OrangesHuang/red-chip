@@ -64,6 +64,18 @@ def test_overall_equal_weight_return_is_mean_change():
     assert overall["equal_weight_return"] == round((3.0 - 1.0 + 2.0 - 2.0 + 1.0) / 5, 4)
 
 
+def test_zone_includes_stock_details():
+    """每个区间返回标的明细, 供前端悬浮查看。"""
+    rows = [
+        {"code": "00941", "name": "中国移动", "market": "hk", "price": 80.0, "change_pct": 1.2, "zone": "低估"},
+        {"code": "601088", "name": "中国神华", "market": "sh", "price": 40.0, "change_pct": -0.5, "zone": "低估"},
+    ]
+    zone = next(z for z in build_zone_stats(rows)["zones"] if z["zone"] == "低估")
+    assert [s["code"] for s in zone["stocks"]] == ["00941", "601088"]
+    assert zone["stocks"][0]["name"] == "中国移动"
+    assert zone["stocks"][1]["change_pct"] == -0.5
+
+
 def test_overall_empty():
     overall = build_zone_stats([])["overall"]
     assert overall["count"] == 0
