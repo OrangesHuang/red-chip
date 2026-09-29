@@ -3,6 +3,7 @@ import Layout from './components/common/Layout'
 import Dashboard from './pages/Dashboard'
 import StockDetail from './pages/StockDetail'
 import DataManage from './pages/DataManage'
+import ZoneBoard from './pages/ZoneBoard'
 
 export default function App() {
   return (
@@ -11,6 +12,7 @@ export default function App() {
         <Route element={<Layout />}>
           <Route path="/" element={<Navigate to="/pool" replace />} />
           <Route path="/pool" element={<Dashboard />} />
+          <Route path="/board" element={<ZoneBoard />} />
           <Route path="/stock/:code" element={<StockDetail />} />
           <Route path="/data" element={<DataManage />} />
         </Route>

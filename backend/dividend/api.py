@@ -14,7 +14,8 @@ from base.fetch.realtime import fetch_realtime
 from base.pool import add_stock, get_stock, list_custom, remove_stock
 from base.store.pool_repo import delete_stock_data, update_stock_name
 from base.store.settings_repo import get_setting, set_setting
-from dividend.service import build_pool, build_stock_detail, refresh_one_stock
+from dividend.analysis import build_zone_stats
+from dividend.service import build_pool_live, build_stock_detail, refresh_one_stock
 
 router = APIRouter(prefix="/api/dividend", tags=["dividend"])
 
@@ -29,19 +30,16 @@ class PoolAddRequest(BaseModel):
 @router.get("/pool")
 def pool():
     """股票池总览: 因子总分降序 + 实时行情叠加(实时失败降级用快照价)。"""
-    rows = build_pool()
-    codes = [r["code"] for r in rows]
-    try:
-        rt = {r["code"]: r for r in fetch_realtime(codes)}
-    except Exception:  # noqa: BLE001
-        rt = {}
-    for r in rows:
-        live = rt.get(r["code"])
-        if live:
-            r["price"] = live["price"]
-            r["change_pct"] = live["change_pct"]
-            r["realtime"] = True
+    rows = build_pool_live()
     return {"stocks": rows, "count": len(rows)}
+
+
+@router.get("/pool/zone-stats")
+def pool_zone_stats():
+    """价格区间统计: 各区间数量/上涨下跌家数/胜率 + 等权组合综合涨跌。"""
+    stats = build_zone_stats(build_pool_live())
+    stats["updated_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    return stats
 
 
 @router.get("/pool/custom")

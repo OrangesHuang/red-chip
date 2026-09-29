@@ -17,6 +17,7 @@ from base.config import DEFAULT_BACKFILL_DAYS, JOB_SLEEP_SEC, YIELD_HISTORY_DAYS
 from base.pool import get_all_stocks, get_stock
 from base.fetch.dividend import fetch_dividend_history
 from base.fetch.kline import fetch_kline
+from base.fetch.realtime import fetch_realtime
 from base.analysis.position import annualized_volatility
 from base.store import dividend_repo, factor_repo, stock_repo
 from dividend.analysis import (
@@ -232,6 +233,22 @@ def build_pool() -> list[dict]:
             }
         )
     rows.sort(key=lambda r: (r["score"] is None, -(r["score"] or 0)))
+    return rows
+
+
+def build_pool_live() -> list[dict]:
+    """股票池 + 实时行情叠加(实时失败降级用快照价)。pool / 区间统计共用。"""
+    rows = build_pool()
+    try:
+        rt = {r["code"]: r for r in fetch_realtime([r["code"] for r in rows])}
+    except Exception:  # noqa: BLE001
+        rt = {}
+    for r in rows:
+        live = rt.get(r["code"])
+        if live:
+            r["price"] = live["price"]
+            r["change_pct"] = live["change_pct"]
+            r["realtime"] = True
     return rows
 
 

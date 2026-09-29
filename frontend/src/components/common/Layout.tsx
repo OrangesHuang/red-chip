@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom'
 
 const NAV = [
   { to: '/pool', label: '股票池' },
+  { to: '/board', label: '区间看板' },
   { to: '/data', label: '数据管理' },
 ]
 

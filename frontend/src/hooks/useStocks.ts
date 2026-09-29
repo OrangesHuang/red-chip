@@ -14,6 +14,7 @@ import {
   fetchPool,
   fetchStockDetail,
   fetchStockNews,
+  fetchZoneStats,
   rebuildData,
   refreshStock,
   removeStock,
@@ -28,6 +29,14 @@ export function usePool() {
     queryKey: ['pool'],
     queryFn: fetchPool,
     refetchInterval: 60_000, // 盘中每分钟刷新实时行情
+  })
+}
+
+export function useZoneStats() {
+  return useQuery({
+    queryKey: ['zone-stats'],
+    queryFn: fetchZoneStats,
+    refetchInterval: 60_000, // 与股票池同步盘中刷新
   })
 }
 

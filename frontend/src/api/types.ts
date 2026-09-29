@@ -25,6 +25,33 @@ export interface PoolResponse {
   count: number
 }
 
+export interface ZoneStat {
+  zone: string
+  count: number
+  up: number
+  down: number
+  flat: number
+  valid: number
+  win_rate: number | null
+  avg_change: number | null
+}
+
+export interface ZoneStatsOverall {
+  count: number
+  up: number
+  down: number
+  flat: number
+  valid: number
+  win_rate: number | null
+  equal_weight_return: number | null
+}
+
+export interface ZoneStatsResponse {
+  zones: ZoneStat[]
+  overall: ZoneStatsOverall
+  updated_at: string
+}
+
 export interface KlineBar {
   date: string
   open: number

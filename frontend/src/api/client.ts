@@ -15,6 +15,7 @@ import type {
   RebuildResult,
   RefreshResult,
   StockDetail,
+  ZoneStatsResponse,
 } from './types'
 
 const BASE = `${__APP_BASE__}/api`
@@ -68,6 +69,10 @@ export function fetchPool(): Promise<PoolResponse> {
 
 export function fetchStockDetail(code: string, days = 640): Promise<StockDetail> {
   return get(`/dividend/stock/${code}?days=${days}`)
+}
+
+export function fetchZoneStats(): Promise<ZoneStatsResponse> {
+  return get('/dividend/pool/zone-stats')
 }
 
 export function refreshStock(code: string): Promise<RefreshResult> {
