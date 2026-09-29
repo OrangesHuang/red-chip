@@ -41,12 +41,16 @@ main.py 仅做 app 组装
 ## 关键约定
 
 - 代码格式：ruff（line-length=120）、mypy 见 `backend/`；新代码保持 `from __future__ import annotations`。
-- 测试：`backend/tests/` pytest，核心纯函数必须有单测（`cd backend && ../.venv/bin/python -m pytest tests -q`）。
+- 测试：`backend/tests/` pytest，核心纯函数必须有单测，**不触网**（LLM 用 monkeypatch 假实现）。
 - 端口：后端 8092、前端 5190（勿与 Resonance 的 8001/5174 及其他项目冲突）。
 - 数据库：**项目内 `data/red_chip.db`**（默认，`RED_CHIP_HOME` 可覆盖；勿改为 `~/.red-chip`，会与开发数据分裂）。
 - 股票池编辑 `base/config.py` 的 `STOCKS` 即可，勿硬编码到页面/接口。
 - 前端 A 股颜色习惯：红=涨/优，绿=跌/差。
-- 前端改动后 `npm run build` 验证 tsc；后端改动后跑 pytest。
+- 前端改动后 `npm run build`（tsc）验证 + `npm run lint`；后端改动后跑 pytest。
+- **Python 3.9 运行时**：`requirements.txt` 的 `eval_type_backport` 不可删——pydantic 模型里用了 PEP 604 的
+  `str | None` 注解，缺它会在 3.9 导入时报错（`from __future__ import annotations` 只让源码可解析）。
+- `./start.sh` 交互终端下会 `nohup` 自后台化（日志 `nohup.out`），且**每次启动先 kill 8092/5190 端口并清
+  `__pycache__`**；停止用 `pkill -f 'uvicorn main:app.*--port 8092'`，前台运行加 `--foreground`。
 
 ## LLM 分析（AI 深度分析）
 
@@ -75,8 +79,12 @@ main.py 仅做 app 组装
 ## 常用命令
 
 ```bash
-./start.sh                                   # 一键启动前后端
-cd backend && ../.venv/bin/python -m pytest tests -q   # 后端单测
-cd frontend && npm run build                 # 前端类型检查 + 构建
-.venv/bin/python scripts/seed_daily.py       # CLI 全池回填
+./start.sh                                            # 一键启动前后端（交互终端自动后台化）
+./start.sh --foreground                               # 前台启动（日志直出）
+cd backend && ../.venv/bin/python -m pytest tests -q  # 后端全量单测
+cd backend && ../.venv/bin/python -m pytest tests/test_factors.py::test_name -q  # 单测/单用例
+cd frontend && npm run build                          # 前端 tsc + 构建
+cd frontend && npm run lint                           # 前端 eslint
+.venv/bin/python scripts/seed_daily.py                # CLI 全池回填（默认 1250 交易日）
+.venv/bin/python scripts/seed_daily.py 600 00941      # 深度 + 单只
 ```

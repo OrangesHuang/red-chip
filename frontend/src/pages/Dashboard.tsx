@@ -1,11 +1,65 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AddStockDialog from '../components/pool/AddStockDialog'
-import { fmtPct, fmtPrice, oddsColor, scoreColor, usePool, zoneColor } from '../hooks/useStocks'
+import {
+  fmtPct,
+  fmtPrice,
+  oddsColor,
+  scoreColor,
+  SORT_DEFAULT_ASC,
+  sortStocks,
+  usePool,
+  zoneColor,
+} from '../hooks/useStocks'
+import type { SortKey } from '../hooks/useStocks'
 import type { PoolStock } from '../api/types'
+
+function SortHeader({
+  label,
+  sortKey,
+  activeKey,
+  asc,
+  onSort,
+  align = 'left',
+}: {
+  label: string
+  sortKey: SortKey
+  activeKey: SortKey
+  asc: boolean
+  onSort: (key: SortKey) => void
+  align?: 'left' | 'right' | 'center'
+}) {
+  const active = activeKey === sortKey
+  return (
+    <th
+      onClick={() => onSort(sortKey)}
+      title="点击排序"
+      className={`py-2 pr-3 font-medium select-none cursor-pointer whitespace-nowrap transition-colors hover:text-gray-300 ${
+        align === 'right' ? 'text-right' : align === 'center' ? 'text-center' : 'text-left'
+      } ${active ? 'text-white' : ''}`}
+    >
+      {label}
+      <span className="ml-0.5 text-[10px]">{active ? (asc ? '▲' : '▼') : ''}</span>
+    </th>
+  )
+}
 
 function PoolTable({ stocks }: { stocks: PoolStock[] }) {
   const navigate = useNavigate()
+  const [sortKey, setSortKey] = useState<SortKey>('score')
+  const [asc, setAsc] = useState(false)
+
+  const sorted = useMemo(() => sortStocks(stocks, sortKey, asc), [stocks, sortKey, asc])
+
+  const handleSort = (key: SortKey) => {
+    if (key === sortKey) {
+      setAsc(v => !v)
+    } else {
+      setSortKey(key)
+      setAsc(SORT_DEFAULT_ASC[key])
+    }
+  }
+
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
@@ -13,19 +67,19 @@ function PoolTable({ stocks }: { stocks: PoolStock[] }) {
           <tr className="text-left text-xs text-gray-500 border-b border-gray-800">
             <th className="py-2 pr-3 font-medium">代码 / 名称</th>
             <th className="py-2 pr-3 font-medium">行业</th>
-            <th className="py-2 pr-3 text-right font-medium">现价</th>
-            <th className="py-2 pr-3 text-right font-medium">涨跌幅</th>
-            <th className="py-2 pr-3 text-right font-medium">股息率</th>
-            <th className="py-2 pr-3 text-right font-medium">因子分</th>
+            <SortHeader label="现价" sortKey="price" activeKey={sortKey} asc={asc} onSort={handleSort} align="right" />
+            <SortHeader label="涨跌幅" sortKey="change_pct" activeKey={sortKey} asc={asc} onSort={handleSort} align="right" />
+            <SortHeader label="股息率" sortKey="div_yield" activeKey={sortKey} asc={asc} onSort={handleSort} align="right" />
+            <SortHeader label="因子分" sortKey="score" activeKey={sortKey} asc={asc} onSort={handleSort} align="right" />
             <th className="py-2 pr-3 text-center font-medium">等级</th>
-            <th className="py-2 pr-3 text-center font-medium">价格区间</th>
-            <th className="py-2 pr-3 text-right font-medium">赔率</th>
-            <th className="py-2 pr-3 text-right font-medium">目标价</th>
+            <SortHeader label="价格区间" sortKey="zone" activeKey={sortKey} asc={asc} onSort={handleSort} align="center" />
+            <SortHeader label="赔率" sortKey="odds" activeKey={sortKey} asc={asc} onSort={handleSort} align="right" />
+            <SortHeader label="目标价" sortKey="target_price" activeKey={sortKey} asc={asc} onSort={handleSort} align="right" />
             <th className="py-2 font-medium">支撑价</th>
           </tr>
         </thead>
         <tbody>
-          {stocks.map(s => (
+          {sorted.map(s => (
             <tr
               key={s.code}
               onClick={() => navigate(`/stock/${s.code}`)}
@@ -98,7 +152,7 @@ export default function Dashboard() {
         <div>
           <h2 className="text-xl font-bold text-white">红筹高股息股票池</h2>
           <p className="mt-1 text-xs text-gray-500">
-            高股息六因子打分 × 股息率锚定价格区间 × 赔率。点击行进入个股详情。
+            高股息六因子打分 × 股息率锚定价格区间 × 赔率。点击行进入个股详情，点击表头排序（价格区间：深度低估在前）。
           </p>
         </div>
         <div className="flex items-center gap-2">

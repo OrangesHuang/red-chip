@@ -246,3 +246,58 @@ export function fmtPct(v: number | null | undefined): string {
 export function sortByScore(a: PoolStock, b: PoolStock): number {
   return (b.score ?? -1) - (a.score ?? -1)
 }
+
+/** 价格区间排序键: 低估在前(深度低估→深度高估), 未分类/无数据垫底。 */
+export type SortKey = 'score' | 'div_yield' | 'zone' | 'odds' | 'price' | 'change_pct' | 'target_price'
+
+const ZONE_ORDER: Record<string, number> = {
+  深度低估: 0,
+  低估: 1,
+  合理: 2,
+  高估: 3,
+  深度高估: 4,
+}
+
+export function zoneRank(zone: string | null | undefined): number {
+  return ZONE_ORDER[zone ?? ''] ?? 5
+}
+
+/** 各列的默认升/降方向: 价格区间越小(越低估)越优, 其余指标越大越优。 */
+export const SORT_DEFAULT_ASC: Record<SortKey, boolean> = {
+  score: false,
+  div_yield: false,
+  zone: true,
+  odds: false,
+  price: false,
+  change_pct: false,
+  target_price: false,
+}
+
+export function sortStocks(stocks: PoolStock[], key: SortKey, asc: boolean): PoolStock[] {
+  const valueOf = (s: PoolStock): number | null => {
+    switch (key) {
+      case 'score':
+        return s.score
+      case 'div_yield':
+        return s.div_yield
+      case 'zone':
+        return zoneRank(s.zone)
+      case 'odds':
+        return s.odds
+      case 'price':
+        return s.price
+      case 'change_pct':
+        return s.change_pct
+      case 'target_price':
+        return s.target_price
+    }
+  }
+  return [...stocks].sort((a, b) => {
+    const av = valueOf(a)
+    const bv = valueOf(b)
+    if (av == null && bv == null) return 0
+    if (av == null) return 1 // 缺失值始终垫底
+    if (bv == null) return -1
+    return asc ? av - bv : bv - av
+  })
+}
